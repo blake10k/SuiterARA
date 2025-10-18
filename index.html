@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Automated Research Assistant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- PDF.js Library --><script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Prose styles for generated content */
+        .prose h3 {
+            margin-top: 1.5em;
+            margin-bottom: 0.5em;
+        }
+        .prose p {
+            margin-bottom: 1em;
+        }
+        .prose ul {
+            list-style-position: inside;
+            padding-left: 1em;
+        }
+        .hypothesis-item {
+            padding: 1rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 flex items-center justify-center min-h-screen p-4">
+
+    <!-- Methodology Selection Modal --><div id="methodology-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+        <div class="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+            <div class="mt-3 text-center">
+                <h3 class="text-lg leading-6 font-medium text-gray-900">Select a Research Methodology</h3>
+                <div class="mt-4 px-7 py-3 space-y-3">
+                    <p class="text-sm text-gray-500">Choose the approach you'd like to take for the research study.</p>
+                    <button data-method="Quantitative" class="method-choice-btn block w-full bg-blue-500 text-white items-center px-4 py-2 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">Quantitative</button>
+                    <button data-method="Qualitative" class="method-choice-btn block w-full bg-blue-500 text-white items-center px-4 py-2 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">Qualitative</button>
+                    <button data-method="Mixed-Methods" class="method-choice-btn block w-full bg-blue-500 text-white items-center px-4 py-2 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">Mixed-Methods</button>
+                </div>
+                <div class="items-center px-4 py-3">
+                    <button id="close-modal-btn" class="px-4 py-2 bg-blue-100 text-blue-800 rounded-md hover:bg-blue-200 w-full">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl p-6 sm:p-8 md:p-12 my-8 space-y-10">
+        <header class="text-center">
+            <h1 class="text-4xl md:text-5xl font-bold text-blue-600">Automated Research Assistant</h1>
+            <p class="mt-4 text-lg text-gray-600 max-w-3xl mx-auto">
+                Your complete research workflow. Upload papers to generate a literature review, discover research gaps, create hypotheses, and design your methodology—all in one place.
+            </p>
+        </header>
+
+        <main>
+            <!-- Input Section --><div id="input-section" class="space-y-8">
+                <div class="flex flex-col items-center space-y-4">
+                    <label for="file-upload" class="cursor-pointer bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-8 w-full text-center hover:border-blue-500 hover:bg-blue-50 transition-colors">
+                        <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
+                            <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        <p class="mt-2 text-lg font-semibold text-gray-700">Click to upload or drag and drop</p>
+                        <p class="text-sm text-gray-500">Upload up to 100 PDF (.pdf) or text (.txt) files</p>
+                        <p class="text-xs text-gray-400 mt-1">Each file can contain a full paper (e.g., 100+ pages).</p>
+                    </label>
+                    <input id="file-upload" type="file" class="hidden" multiple accept=".txt,.pdf">
+                    <div id="file-list-container" class="w-full pt-4">
+                         <h4 class="font-semibold text-gray-800" id="file-list-header"></h4>
+                         <ul id="file-list" class="mt-2 space-y-2"></ul>
+                    </div>
+                </div>
+
+                <div class="text-center mt-8">
+                    <button id="generate-btn" class="bg-blue-600 text-white font-bold py-3 px-8 rounded-lg shadow-lg hover:bg-blue-700 transition-transform transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-blue-300 opacity-50 cursor-not-allowed" disabled>
+                        Generate
+                    </button>
+                </div>
+            </div>
+
+            <!-- Loading Indicator --><div id="loading-indicator" class="hidden flex-col items-center justify-center mt-10">
+                <div class="loader"></div>
+                <p id="loading-text" class="mt-4 text-gray-600 font-medium">Analyzing papers and synthesizing review... This may take a moment.</p>
+            </div>
+
+            <!-- Error Message --><div id="error-message" class="hidden mt-6 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative" role="alert">
+                <strong class="font-bold">Error:</strong>
+                <span class="block sm:inline" id="error-text"></span>
+            </div>
+
+            <!-- Results Section --><div id="results-section" class="hidden mt-12 space-y-10">
+                <div>
+                    <h2 id="results-title" class="text-3xl font-bold text-gray-900 mb-6">Generated Literature Review</h2>
+                    <div id="final-review-container" class="prose max-w-none text-gray-700 leading-relaxed">
+                        <!-- Final review will be injected here --></div>
+                     <button id="copy-btn" class="mt-6 bg-blue-100 text-blue-800 font-bold py-2 px-4 rounded-lg hover:bg-blue-200 transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-300">
+                        Copy
+                    </button>
+                    <button id="generate-hypothesis-btn" class="hidden mt-6 ml-2 bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-700 transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-400">
+                        Generate Hypotheses
+                    </button>
+                </div>
+
+                <div id="hypothesis-section" class="hidden">
+                    <h3 class="text-2xl font-bold text-gray-900 mb-4">Generated Research Hypotheses</h3>
+                     <div id="hypothesis-loader" class="hidden flex-col items-center justify-center mt-4">
+                        <div class="loader"></div>
+                        <p class="mt-4 text-gray-600 font-medium">Analyzing gaps and formulating hypotheses...</p>
+                    </div>
+                    <div id="hypothesis-container" class="space-y-4">
+                        <!-- Hypotheses will be injected here --></div>
+                </div>
+
+                <div id="methodology-section" class="hidden">
+                    <h3 id="methodology-title" class="text-2xl font-bold text-gray-900 mb-4">Proposed Research Methodology</h3>
+                     <div id="methodology-loader" class="hidden flex-col items-center justify-center mt-4">
+                        <div class="loader"></div>
+                        <p class="mt-4 text-gray-600 font-medium">Designing research plan...</p>
+                    </div>
+                    <div id="methodology-container" class="prose max-w-none text-gray-700 leading-relaxed">
+                        <!-- Methodology will be injected here --></div>
+                </div>
+
+                <div id="individual-summaries-section" class="mt-10">
+                     <h3 class="text-2xl font-bold text-gray-900 mb-4">Individual Paper Summaries</h3>
+                     <div id="individual-summaries-container" class="space-y-4">
+                        <!-- Individual summaries will be injected here --></div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+        // --- DOM Element References ---
+        const generateBtn = document.getElementById('generate-btn');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const loadingText = document.getElementById('loading-text');
+        const resultsSection = document.getElementById('results-section');
+        const inputSection = document.getElementById('input-section');
+        const finalReviewContainer = document.getElementById('final-review-container');
+        const individualSummariesContainer = document.getElementById('individual-summaries-container');
+        const individualSummariesSection = document.getElementById('individual-summaries-section');
+        const copyBtn = document.getElementById('copy-btn');
+        const errorMessage = document.getElementById('error-message');
+        const errorText = document.getElementById('error-text');
+        const fileUploadInput = document.getElementById('file-upload');
+        const fileList = document.getElementById('file-list');
+        const fileListHeader = document.getElementById('file-list-header');
+        const resultsTitle = document.getElementById('results-title');
+        const generateHypothesisBtn = document.getElementById('generate-hypothesis-btn');
+        const hypothesisSection = document.getElementById('hypothesis-section');
+        const hypothesisLoader = document.getElementById('hypothesis-loader');
+        const hypothesisContainer = document.getElementById('hypothesis-container');
+        const methodologySection = document.getElementById('methodology-section');
+        const methodologyLoader = document.getElementById('methodology-loader');
+        const methodologyContainer = document.getElementById('methodology-container');
+        const methodologyTitle = document.getElementById('methodology-title');
+        const methodologyModal = document.getElementById('methodology-modal');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+
+        let uploadedPaperContents = [];
+        let currentHypothesis = '';
+
+        // --- PDF.js Worker Configuration ---
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js`;
+
+        // --- Gemini API Configuration ---
+        const apiKey = ""; 
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+        async function callGeminiApi(payload, maxRetries = 5) {
+            let attempt = 0;
+            while (attempt < maxRetries) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (!response.ok) {
+                        const errorBody = await response.json();
+                        throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorBody.error?.message || 'Unknown error'}`);
+                    }
+                    const result = await response.json();
+                    if (result.candidates && result.candidates[0].content && result.candidates[0].content.parts[0].text) {
+                        return result.candidates[0].content.parts[0].text;
+                    } else {
+                        if (result.candidates && result.candidates[0].finishReason === 'SAFETY') {
+                            throw new Error('Content generation was blocked due to safety settings.');
+                        }
+                        throw new Error('Unexpected API response structure.');
+                    }
+                } catch (error) {
+                    console.error(`API call attempt ${attempt + 1} failed:`, error);
+                    if (attempt + 1 >= maxRetries) throw error;
+                    const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    attempt++;
+                }
+            }
+        }
+
+        // --- Core AI Functions ---
+        function summarizePaper(paperText) {
+            const systemPrompt = `You are an expert academic research assistant. Your task is to write a summary of the provided academic paper text, formatted as a cohesive narrative paragraph suitable for a literature review in APA style. Instead of listing sections (e.g., "Methodology," "Findings"), weave the core components—such as the research question, methodology, key findings, and conclusions—into a fluid, scholarly review. The summary should be objective, concise, and presented in a formal academic tone. Do not use any markdown heading syntax like '#' or '###'.`;
+            const payload = { contents: [{ parts: [{ text: paperText }] }], systemInstruction: { parts: [{ text: systemPrompt }] } };
+            return callGeminiApi(payload);
+        }
+
+        function synthesizeReview(summaries) {
+            const systemPrompt = `You are an expert academic writer specializing in literature reviews for scholarly journals. Your task is to synthesize the provided summaries of multiple academic papers into a coherent, well-structured literature review, adhering to APA style and format principles.
+
+Your response must:
+1.  Be written as a narrative, not a list of summaries.
+2.  Organize the synthesis around common themes, concepts, or findings present across the papers. Use thematic headings to structure the review.
+3.  Compare and contrast the findings of the different papers, highlighting areas of agreement and disagreement.
+4.  Maintain a formal, scholarly tone throughout.
+5.  Conclude with a dedicated section titled "Gaps and Limitations" that explicitly identifies the research gaps, unanswered questions, or methodological limitations evident from the synthesized literature. This section is crucial for generating future research hypotheses. Do not use markdown heading syntax like '#' or '###' for headings or any other purpose.`;
+            const userQuery = `Synthesize the following paper summaries into a literature review:\n\n---\n\n` + summaries.join('\n\n---\n\n');
+            const payload = { contents: [{ parts: [{ text: userQuery }] }], systemInstruction: { parts: [{ text: systemPrompt }] } };
+            return callGeminiApi(payload);
+        }
+
+        function generateHypotheses(literatureReviewText) {
+            const systemPrompt = `You are an expert research methodologist. Your task is to analyze the "Gaps and Limitations" section of the provided literature review. Based solely on this analysis, formulate 3 to 5 distinct, clear, specific, and testable research hypotheses. Each hypothesis should logically extend from the identified gaps and propose a relationship between variables that could be investigated in a future study.
+
+Format your response as a numbered list. Each item should contain only the hypothesis statement. Do not add any extra explanation or introductory text. For example:
+1. H1: [Hypothesis statement 1].
+2. H2: [Hypothesis statement 2]. Do not use any markdown heading syntax like '#' or '###'.`;
+            const userQuery = `Analyze the following literature review and generate research hypotheses:\n\n${literatureReviewText}`;
+            const payload = { contents: [{ parts: [{ text: userQuery }] }], systemInstruction: { parts: [{ text: systemPrompt }] } };
+            return callGeminiApi(payload);
+        }
+
+        function generateMethodology(literatureReviewText, hypothesisText, methodologyType) {
+            const systemPrompt = `You are an expert academic researcher. Your task is to generate a concise methodology section for a research paper in APA format, designed to test the given hypothesis. Use a **${methodologyType}** approach. The goal is to provide a clear, step-by-step plan that gives the user a strong starting point.
+
+Structure the response using the following APA-style subheadings. Keep the description under each heading brief and focused.
+
+**Research Design**
+State the specific research design (e.g., correlational, experimental, case study) and briefly justify its appropriateness.
+
+**Participants**
+Concisely describe the target population, sampling method, and proposed sample size.
+
+**Materials and Procedure**
+1.  **Materials:** Briefly list the key instruments or tools (e.g., specific surveys, interview protocols).
+2.  **Procedure:** Provide a clear, numbered list of the step-by-step actions to be taken to execute the study, from participant recruitment to data collection.
+
+**Data Analysis Plan**
+Succinctly state the primary analytical methods (e.g., t-test, thematic analysis) that will be used to analyze the data and test the hypothesis.
+
+Ensure the entire output is practical and avoids excessive detail. Do not use markdown heading syntax like '#' or '###'.`;
+            const userQuery = `Based on the following literature review and hypothesis, propose a ${methodologyType} research methodology.\n\n--- LITERATURE REVIEW ---\n${literatureReviewText}\n\n--- HYPOTHESIS ---\n${hypothesisText}`;
+            const payload = { contents: [{ parts: [{ text: userQuery }] }], systemInstruction: { parts: [{ text: systemPrompt }] } };
+            return callGeminiApi(payload);
+        }
+
+        // --- File Handling ---
+        async function readPdfFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = async () => {
+                    try {
+                        const typedarray = new Uint8Array(reader.result);
+                        const pdf = await pdfjsLib.getDocument(typedarray).promise;
+                        let fullText = '';
+                        for (let i = 1; i <= pdf.numPages; i++) {
+                            const page = await pdf.getPage(i);
+                            const textContent = await page.getTextContent();
+                            fullText += textContent.items.map(item => item.str).join(' ') + '\n\n';
+                        }
+                        resolve(fullText);
+                    } catch (error) {
+                        reject(new Error(`Could not read text from PDF: ${file.name}`));
+                    }
+                };
+                reader.onerror = (e) => reject(e);
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        function readTxtFile(file) {
+            return file.text();
+        }
+
+        fileUploadInput.addEventListener('change', async (event) => {
+            const files = event.target.files;
+            fileList.innerHTML = '';
+            uploadedPaperContents = [];
+            showError('');
+            generateBtn.disabled = true;
+            generateBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            generateBtn.textContent = 'Generate';
+
+            if (files.length < 1) return;
+            if (files.length > 100) {
+                showError('You can upload a maximum of 100 files.');
+                fileUploadInput.value = '';
+                return;
+            }
+
+            fileListHeader.textContent = `Selected Files (${files.length}):`;
+            const readPromises = Array.from(files).map(file => {
+                const li = document.createElement('li');
+                li.className = "flex items-center bg-gray-100 p-2 rounded-md text-sm text-gray-700";
+                li.innerHTML = `<svg class="w-5 h-5 mr-2 text-gray-500 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg> <span class="truncate">${file.name}</span>`;
+                fileList.appendChild(li);
+                return file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf') ? readPdfFile(file) : readTxtFile(file);
+            });
+
+            try {
+                setLoading(true, 'Reading files...');
+                uploadedPaperContents = await Promise.all(readPromises);
+                if (uploadedPaperContents.length > 0) {
+                    generateBtn.disabled = false;
+                    generateBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    generateBtn.textContent = uploadedPaperContents.length === 1 ? 'Generate Summary' : 'Generate Literature Review';
+                }
+            } catch (error) {
+                console.error("Error reading files:", error);
+                showError(error.message || "There was an error reading one or more files.");
+                uploadedPaperContents = [];
+                fileList.innerHTML = '';
+                fileListHeader.textContent = '';
+            } finally {
+                setLoading(false);
+            }
+        });
+
+        // --- Main Application Logic & Event Listeners ---
+        generateBtn.addEventListener('click', async () => {
+            resetResults();
+            if (uploadedPaperContents.length < 1) {
+                showError('Please upload at least 1 academic paper.');
+                return;
+            }
+
+            setLoading(true, 'Analyzing papers and synthesizing review...');
+            generateBtn.disabled = true;
+            generateBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
+            try {
+                if (uploadedPaperContents.length === 1) {
+                    individualSummariesSection.classList.add('hidden');
+                    resultsTitle.textContent = 'Generated Summary';
+                    const summary = await summarizePaper(uploadedPaperContents[0]);
+                    finalReviewContainer.innerHTML = formatAsHTML(summary);
+                } else {
+                    individualSummariesSection.classList.remove('hidden');
+                    resultsTitle.textContent = 'Generated Literature Review';
+                    const summaryPromises = uploadedPaperContents.map(text => summarizePaper(text));
+                    const summaries = await Promise.all(summaryPromises);
+
+                    summaries.forEach((summary, index) => {
+                        const summaryElement = document.createElement('details');
+                        summaryElement.className = 'bg-gray-100 p-4 rounded-lg cursor-pointer';
+                        summaryElement.innerHTML = `<summary class="font-semibold text-gray-800">Summary of Paper ${index + 1}</summary><div class="mt-2 text-gray-600 prose max-w-none">${formatAsHTML(summary)}</div>`;
+                        individualSummariesContainer.appendChild(summaryElement);
+                    });
+
+                    const literatureReview = await synthesizeReview(summaries);
+                    finalReviewContainer.innerHTML = formatAsHTML(literatureReview);
+                    generateHypothesisBtn.classList.remove('hidden');
+                }
+                resultsSection.classList.remove('hidden');
+                window.scrollTo({ top: resultsSection.offsetTop - 20, behavior: 'smooth' });
+            } catch (err) {
+                handleError(err, 'An unknown error occurred while processing the request.');
+            } finally {
+                setLoading(false);
+            }
+        });
+
+        generateHypothesisBtn.addEventListener('click', async () => {
+            const literatureReviewText = finalReviewContainer.innerText;
+            if (!literatureReviewText) {
+                showError("Cannot generate hypotheses without a literature review.");
+                return;
+            }
+
+            setLoading(true, 'Analyzing gaps and formulating hypotheses...', hypothesisLoader);
+            hypothesisSection.classList.remove('hidden');
+            hypothesisContainer.innerHTML = '';
+            generateHypothesisBtn.disabled = true;
+
+            try {
+                const hypothesesText = await generateHypotheses(literatureReviewText);
+                const hypotheses = hypothesesText.match(/\d+\.\s*(H\d*:?.*)/g) || [hypothesesText];
+                
+                hypotheses.forEach(hyp => {
+                    const cleanHyp = hyp.replace(/^\d+\.\s*/, '');
+                    const item = document.createElement('div');
+                    item.className = 'hypothesis-item';
+                    
+                    const textSpan = document.createElement('span');
+                    textSpan.className = 'flex-grow text-gray-700';
+                    textSpan.textContent = cleanHyp;
+                    
+                    const button = document.createElement('button');
+                    button.textContent = 'Generate Methodology';
+                    button.className = 'generate-methodology-btn bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-700 transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-400 flex-shrink-0';
+                    button.dataset.hypothesis = cleanHyp;
+                    
+                    item.appendChild(textSpan);
+                    item.appendChild(button);
+                    hypothesisContainer.appendChild(item);
+                });
+                
+                window.scrollTo({ top: hypothesisSection.offsetTop - 20, behavior: 'smooth' });
+            } catch (err) {
+                handleError(err, "Failed to generate hypotheses.", hypothesisSection);
+            } finally {
+                setLoading(false, '', hypothesisLoader);
+                generateHypothesisBtn.disabled = false;
+            }
+        });
+        
+        hypothesisContainer.addEventListener('click', (e) => {
+            if (e.target.classList.contains('generate-methodology-btn')) {
+                currentHypothesis = e.target.dataset.hypothesis;
+                methodologyModal.classList.remove('hidden');
+            }
+        });
+
+        methodologyModal.addEventListener('click', async (e) => {
+            if (e.target.classList.contains('method-choice-btn')) {
+                methodologyModal.classList.add('hidden');
+                const selectedMethod = e.target.dataset.method;
+                await handleMethodologyGeneration(selectedMethod);
+            }
+            if (e.target.id === 'close-modal-btn' || e.target === methodologyModal) {
+                 methodologyModal.classList.add('hidden');
+            }
+        });
+        
+        async function handleMethodologyGeneration(method) {
+            const literatureReviewText = finalReviewContainer.innerText;
+
+            setLoading(true, 'Designing research plan...', methodologyLoader);
+            methodologySection.classList.remove('hidden');
+            methodologyContainer.innerHTML = '';
+            methodologyTitle.textContent = `Proposed ${method} Methodology`;
+
+            try {
+                const methodology = await generateMethodology(literatureReviewText, currentHypothesis, method);
+                methodologyContainer.innerHTML = formatAsHTML(methodology);
+                window.scrollTo({ top: methodologySection.offsetTop - 20, behavior: 'smooth' });
+            } catch(err) {
+                handleError(err, "Failed to generate a methodology.", methodologySection);
+            } finally {
+                setLoading(false, '', methodologyLoader);
+            }
+        }
+
+
+        // --- UI Helper Functions ---
+        function resetResults() {
+            resultsSection.classList.add('hidden');
+            errorMessage.classList.add('hidden');
+            individualSummariesContainer.innerHTML = '';
+            finalReviewContainer.innerHTML = '';
+            generateHypothesisBtn.classList.add('hidden');
+            hypothesisSection.classList.add('hidden');
+            hypothesisContainer.innerHTML = '';
+            methodologySection.classList.add('hidden');
+            methodologyContainer.innerHTML = '';
+        }
+
+        function setLoading(isLoading, text = '', loaderElement = loadingIndicator) {
+            const textElement = loaderElement.querySelector('p');
+            if (textElement) textElement.textContent = text;
+            
+            if (isLoading) {
+                loaderElement.classList.remove('hidden');
+                loaderElement.classList.add('flex');
+            } else {
+                loaderElement.classList.add('hidden');
+                loaderElement.classList.remove('flex');
+            }
+        }
+
+        function showError(message) {
+            if (!message) {
+                 errorMessage.classList.add('hidden');
+            } else {
+                errorText.textContent = message;
+                errorMessage.classList.remove('hidden');
+            }
+        }
+        
+        function handleError(err, defaultMessage, sectionToHide = null) {
+            console.error('An error occurred:', err);
+            showError(err.message || defaultMessage);
+            if (sectionToHide) sectionToHide.classList.add('hidden');
+        }
+
+        function formatAsHTML(text) {
+             return text
+                .replace(/^(\d+\.\s*H\d*:?.*)$/gm, '<p class="font-bold text-lg my-2">$1</p>') // Bold hypotheses
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // Bold
+                .replace(/\n/g, '<br>');
+        }
+
+        copyBtn.addEventListener('click', () => {
+            const textToCopy = finalReviewContainer.innerText;
+            const textArea = document.createElement('textarea');
+            textArea.value = textToCopy;
+
+            // Make the textarea non-editable and invisible
+            textArea.style.position = 'fixed';
+            textArea.style.top = '-9999px';
+            textArea.style.left = '-9999px';
+            document.body.appendChild(textArea);
+            
+            textArea.select();
+            textArea.setSelectionRange(0, 99999); // For mobile devices
+
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    copyBtn.textContent = 'Copied!';
+                } else {
+                    copyBtn.textContent = 'Copy Failed';
+                     console.error('Copy command was not successful');
+                }
+            } catch (err) {
+                console.error('Failed to copy text: ', err);
+                copyBtn.textContent = 'Copy Failed';
+            }
+
+            document.body.removeChild(textArea);
+
+            setTimeout(() => {
+                copyBtn.textContent = 'Copy';
+            }, 2000);
+        });
+
+    </script>
+</body>
+</html>
+
